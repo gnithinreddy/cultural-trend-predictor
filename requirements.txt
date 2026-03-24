@@ -9,3 +9,7 @@ torch>=2.0.0
 accelerate>=0.20.0
 spacy>=3.7.0
 pytrends>=5.0.0
+rake-nltk>=1.0.6
+vaderSentiment>=3.3.2
+plotly>=5.18.0
+networkx>=3.2

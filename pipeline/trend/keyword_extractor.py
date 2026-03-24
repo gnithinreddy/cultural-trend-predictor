@@ -4,7 +4,6 @@ Uses spaCy NER + noun chunks. Falls back to simple extraction if spaCy unavailab
 """
 import logging
 import re
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -40,11 +39,11 @@ def _load_spacy():
             _nlp = spacy.load("en_core_web_sm")
             return _nlp
         except Exception as e:
-            logger.warning("spaCy not available: %s. Using fallback.", e)
+            logger.debug("spaCy not available: %s. Using fallback.", e)
             _nlp = False
             return None
     except Exception as e:
-        logger.warning("spaCy not available: %s. Using fallback.", e)
+        logger.debug("spaCy not available: %s. Using fallback.", e)
         _nlp = False
         return None
 
@@ -107,3 +106,69 @@ def extract_keywords(title: str, body: str = "", max_terms: int = 3) -> str:
     # Take top max_terms, join
     result = " ".join(terms[:max_terms])[:80]
     return result.strip()
+
+
+def extract_entities(text: str) -> list[str]:
+    """
+    Extract named entities (PERSON, ORG, GPE, EVENT, PRODUCT) for emerging topics.
+    Returns list of entity strings, lowercased for deduplication.
+    """
+    text = (text or "").strip()[:500]
+    if not text:
+        return []
+
+    nlp = _load_spacy()
+    if nlp is None:
+        return []
+
+    try:
+        doc = nlp(text)
+    except Exception:
+        return []
+
+    entities = []
+    for ent in doc.ents:
+        if ent.label_ in ("PERSON", "ORG", "GPE", "EVENT", "PRODUCT"):
+            t = ent.text.strip()
+            if len(t) > 1 and t.lower() not in _STOPWORDS:
+                entities.append(t.lower())
+    return list(dict.fromkeys(entities))  # preserve order, dedupe
+
+
+def extract_phrases(text: str, min_words: int = 2, max_words: int = 4) -> list[str]:
+    """
+    Extract noun chunks and phrases from text for emerging topics.
+    Returns list of phrase strings.
+    """
+    text = (text or "").strip()[:500]
+    if not text:
+        return []
+
+    nlp = _load_spacy()
+    if nlp is None:
+        return _extract_ngrams_simple(text, min_words, max_words)
+
+    try:
+        doc = nlp(text)
+    except Exception:
+        return _extract_ngrams_simple(text, min_words, max_words)
+
+    phrases = []
+    for chunk in doc.noun_chunks:
+        t = chunk.text.strip().lower()
+        if min_words <= len(t.split()) <= max_words and t not in _STOPWORDS:
+            phrases.append(t)
+    return list(dict.fromkeys(phrases))
+
+
+def _extract_ngrams_simple(text: str, min_len: int, max_len: int) -> list[str]:
+    """Fallback: extract n-grams from text."""
+    words = re.sub(r"[^\w\s]", " ", text).split()
+    words = [w.lower() for w in words if len(w) > 2 and w.lower() not in _STOPWORDS]
+    result = []
+    for n in range(min_len, max_len + 1):
+        for i in range(len(words) - n + 1):
+            phrase = " ".join(words[i : i + n])
+            if phrase and len(phrase) > 3:
+                result.append(phrase)
+    return list(dict.fromkeys(result))

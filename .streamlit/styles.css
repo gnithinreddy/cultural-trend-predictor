@@ -1,0 +1,140 @@
+/* Cultural Trend Predictor - Refined Dark UI */
+.stApp {
+    background: #0f172a !important;
+}
+
+/* Main content area */
+.main .block-container {
+    padding-top: 1.5rem !important;
+    padding-bottom: 2rem !important;
+    max-width: 1400px !important;
+}
+
+/* KPI cards - elevated card style */
+[data-testid="stMetric"] {
+    background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%) !important;
+    padding: 1rem 1.25rem !important;
+    border-radius: 12px !important;
+    border: 1px solid #334155 !important;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2) !important;
+}
+
+[data-testid="stMetric"]:hover {
+    border-color: #475569 !important;
+}
+
+[data-testid="stMetricValue"] {
+    color: #6366f1 !important;
+    font-weight: 700 !important;
+    font-size: 1.5rem !important;
+}
+
+[data-testid="stMetricLabel"] {
+    color: #94a3b8 !important;
+    font-weight: 500 !important;
+}
+
+/* Section headers */
+h1, h2, h3 {
+    font-weight: 600 !important;
+    letter-spacing: -0.02em !important;
+}
+
+/* Sidebar - cleaner */
+[data-testid="stSidebar"] {
+    background: #0f172a !important;
+    border-right: 1px solid #1e293b !important;
+}
+
+[data-testid="stSidebar"] .stRadio > div {
+    gap: 0.25rem !important;
+}
+
+[data-testid="stSidebar"] label {
+    color: #94a3b8 !important;
+}
+
+/* Expanders - card-like */
+.streamlit-expanderHeader {
+    background: #1e293b !important;
+    border-radius: 8px !important;
+    border: 1px solid #334155 !important;
+}
+
+.streamlit-expanderContent {
+    background: #0f172a !important;
+    border: 1px solid #334155 !important;
+    border-top: none !important;
+    border-radius: 0 0 8px 8px !important;
+}
+
+/* Topic chips (inline) */
+.topic-chip {
+    display: inline-block;
+    background: #1e293b;
+    color: #e2e8f0;
+    padding: 0.3rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    margin: 0.2rem;
+    border: 1px solid #334155;
+}
+
+.topic-chip small {
+    color: #94a3b8;
+    font-size: 0.75rem;
+    margin-left: 0.2rem;
+}
+
+/* Tabs - pill style */
+.stTabs [data-baseweb="tab-list"] {
+    background: #1e293b !important;
+    border-radius: 10px !important;
+    padding: 4px !important;
+    gap: 4px !important;
+}
+
+.stTabs [data-baseweb="tab"] {
+    border-radius: 8px !important;
+    color: #94a3b8 !important;
+}
+
+.stTabs [aria-selected="true"] {
+    background: #6366f1 !important;
+    color: white !important;
+}
+
+/* Download button */
+.stDownloadButton button {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+    padding: 0.5rem 1.25rem !important;
+}
+
+.stDownloadButton button:hover {
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%) !important;
+    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4) !important;
+}
+
+/* Dataframe */
+[data-testid="stDataFrame"] {
+    border-radius: 10px !important;
+    overflow: hidden !important;
+    border: 1px solid #334155 !important;
+}
+
+/* Dividers - subtle */
+hr {
+    border: none !important;
+    height: 1px !important;
+    background: #334155 !important;
+    margin: 1.5rem 0 !important;
+}
+
+/* Caption - muted */
+.stCaption, .caption {
+    color: #64748b !important;
+}

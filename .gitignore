@@ -6,6 +6,7 @@ data/raw/
 data/processed/
 data/history/
 data/final/
+data/tracked_urls.json
 
 # Python
 __pycache__/

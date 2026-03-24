@@ -7,10 +7,20 @@ from datetime import datetime, timezone
 
 import pandas as pd
 
-from config.config import REDDIT_RAW, NEWS_RAW, PROCESSED_DIR
+from config.config import REDDIT_RAW, NEWS_RAW, PROCESSED_DIR, POSTS_PER_BUCKET
 from pipeline.process.cleaner import clean
 from pipeline.classify.post_classifier import classify
-from pipeline.trend.trend_scorer import score_trends
+from pipeline.trend.trend_scorer import score_trends, append_refetched_to_history
+from pipeline.sentiment.sentiment_analyzer import add_sentiment
+from pipeline.emerging.emerging_topics import save_keyword_counts_for_date
+from pipeline.track.refetcher import refetch_reddit_scores
+from pipeline.track.tracked_manager import (
+    load_tracked,
+    save_tracked,
+    prune_tracked,
+    add_from_curated,
+    get_tracked_reddit_urls,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +66,14 @@ def run_process(skip_trend: bool = False) -> int:
     df = pd.concat(dfs, ignore_index=True)
     logger.info("Loaded %d raw rows", len(df))
 
+    # Re-fetch tracked Reddit URLs and append to history
+    tracked = load_tracked()
+    reddit_urls = get_tracked_reddit_urls(tracked)
+    if reddit_urls:
+        refetched = refetch_reddit_scores(reddit_urls)
+        if refetched:
+            append_refetched_to_history(refetched, today)
+
     df = clean(df)
     logger.info("Cleaned: %d rows", len(df))
 
@@ -64,6 +82,28 @@ def run_process(skip_trend: bool = False) -> int:
 
     df = score_trends(df, date_str=today, skip_pytrends=skip_trend)
     logger.info("Trend scores computed")
+
+    df = add_sentiment(df)
+    logger.info("Sentiment added")
+
+    save_keyword_counts_for_date(df, today)
+    logger.info("Keyword counts saved for burst detection")
+
+    # Add curated (top N per bucket per category) to tracked, then prune
+    curated = []
+    for cat in df["category"].dropna().unique():
+        sub = df[df["category"] == cat]
+        rising = sub[sub["trend_score"] >= 70].nlargest(POSTS_PER_BUCKET, "trend_score")
+        falling = sub[sub["trend_score"] <= 30].nsmallest(POSTS_PER_BUCKET, "trend_score")
+        stable = sub[(sub["trend_score"] > 30) & (sub["trend_score"] < 70)]
+        new = stable.sort_values("created_at", ascending=False).head(POSTS_PER_BUCKET) if "created_at" in sub.columns else stable.head(POSTS_PER_BUCKET)
+        for _, row in pd.concat([rising, falling, new]).iterrows():
+            # Only track Reddit URLs (we re-fetch Reddit scores only)
+            if row.get("source") == "reddit":
+                curated.append({"url": row["url"], "category": cat, "source": row["source"]})
+    tracked = add_from_curated(tracked, curated)
+    tracked = prune_tracked(tracked)
+    save_tracked(tracked)
 
     df.to_csv(processed_path, index=False, encoding="utf-8")
     logger.info("Saved to %s", processed_path)

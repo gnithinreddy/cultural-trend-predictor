@@ -6,7 +6,14 @@ import argparse
 import logging
 import subprocess
 import sys
+import warnings
 from pathlib import Path
+
+# Suppress noisy third-party warnings (Python 3.14, pytrends, etc.)
+warnings.filterwarnings("ignore", message=".*Pydantic V1.*")
+warnings.filterwarnings("ignore", message=".*REGEX.*")
+warnings.filterwarnings("ignore", message=".*unable to infer type.*")
+warnings.filterwarnings("ignore", category=FutureWarning, module="pytrends.request")
 
 # Ensure project root is on path
 _project_root = Path(__file__).resolve().parent
@@ -15,6 +22,14 @@ if str(_project_root) not in sys.path:
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
+
+
+def _suppress_spacy_fallback(record: logging.LogRecord) -> bool:
+    """Filter out spaCy fallback warning (Python 3.14 compatibility)."""
+    return "spaCy not available" not in record.getMessage()
+
+
+logging.getLogger().addFilter(_suppress_spacy_fallback)
 
 
 def cmd_run(skip_trend: bool = False) -> int:

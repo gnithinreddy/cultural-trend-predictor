@@ -3,7 +3,7 @@ Collect controller: orchestrates data collection from Reddit and News.
 Called by the check pipeline when raw data for today is missing.
 """
 import logging
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
 import pandas as pd

@@ -6,8 +6,6 @@ News: keywords → Google Trends (pytrends).
 import logging
 import time
 from datetime import datetime, timezone
-from pathlib import Path
-
 import pandas as pd
 
 from config.config import HISTORY_DIR, PYTRENDS_DELAY_SEC, HISTORY_RETENTION_DAYS
@@ -105,6 +103,20 @@ def _prune_history(hist: pd.DataFrame, retention_days: int) -> pd.DataFrame:
         return hist
 
 
+def append_refetched_to_history(refetched: dict[str, int], date_str: str) -> None:
+    """Append re-fetched Reddit scores to history. refetched = {url: score}."""
+    if not refetched:
+        return
+    rows = [{"url": url, "date": date_str, "score": score} for url, score in refetched.items()]
+    new_df = pd.DataFrame(rows)
+    hist = _load_history()
+    combined = pd.concat([hist, new_df], ignore_index=True)
+    combined = _prune_history(combined, HISTORY_RETENTION_DAYS)
+    HISTORY_DIR.mkdir(parents=True, exist_ok=True)
+    combined.to_csv(HISTORY_FILE, index=False, encoding="utf-8")
+    logger.info("Appended %d refetched scores to history", len(rows))
+
+
 def _append_history(df: pd.DataFrame, date_str: str) -> None:
     """Append today's (url, score) to history, then prune old rows."""
     HISTORY_DIR.mkdir(parents=True, exist_ok=True)
@@ -136,15 +148,46 @@ def score_trends(df: pd.DataFrame, date_str: str, skip_pytrends: bool = False) -
     df = df.copy()
     now = datetime.now(timezone.utc)
 
-    # Reddit: velocity (vectorized)
+    # Reddit: use history growth when 2+ days, else velocity
     reddit_mask = df["source"] == "reddit"
     if reddit_mask.any():
+        hist = _load_history()
         rdf = df.loc[reddit_mask].copy()
-        created = pd.to_datetime(rdf["created_at"], errors="coerce")
-        hours = ((now - created).dt.total_seconds() / 3600).clip(lower=0.5)
-        velocities = rdf["score"].fillna(0).astype(float) / hours
-        df.loc[reddit_mask, "trend_score"] = _min_max_normalize(velocities).values
-        df.loc[reddit_mask, "keywords"] = ""
+        scores = []
+        velocity_indices = []
+        for idx, row in rdf.iterrows():
+            url = row.get("url")
+            score = row.get("score", 0)
+            if pd.isna(url):
+                scores.append(50.0)
+                continue
+            url_hist = hist[hist["url"] == url].sort_values("date", ascending=False)
+            if len(url_hist) >= 2:
+                latest = int(url_hist.iloc[0]["score"])
+                prev = int(url_hist.iloc[1]["score"])
+                growth = (latest - prev) / max(prev, 1) if prev else 0
+                score_val = 50 + 25 * max(-1, min(1, growth))
+                scores.append(max(0, min(100, score_val)))
+            else:
+                created = pd.to_datetime(row.get("created_at"), errors="coerce")
+                if pd.notna(created):
+                    if created.tzinfo is None:
+                        created = created.tz_localize("UTC")
+                    hours = max((now - created).total_seconds() / 3600, 0.5)
+                    scores.append(float(score) / hours if pd.notna(score) else 0)
+                else:
+                    scores.append(50.0)
+                velocity_indices.append(len(scores) - 1)
+        if velocity_indices:
+            vel_vals = [scores[i] for i in velocity_indices]
+            norm_vel = _min_max_normalize(pd.Series(vel_vals))
+            for j, i in enumerate(velocity_indices):
+                scores[i] = norm_vel.iloc[j]
+        df.loc[reddit_mask, "trend_score"] = scores
+        df.loc[reddit_mask, "keywords"] = df.loc[reddit_mask].apply(
+            lambda r: extract_keywords(str(r.get("title", "")), str(r.get("body", ""))[:200]),
+            axis=1,
+        )
 
     # News: keywords + pytrends
     news_mask = df["source"] == "news"
